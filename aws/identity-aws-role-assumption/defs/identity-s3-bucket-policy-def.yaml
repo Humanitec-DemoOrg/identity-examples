@@ -1,0 +1,59 @@
+apiVersion: entity.humanitec.io/v1b1
+kind: Definition
+metadata:
+  id: identity-aws-role-assumption-s3-aws-policy
+entity:
+  driver_account: ${resources['config.default#aws'].account}
+  driver_inputs:
+    values:
+      append_logs_to_error: true
+      credentials_config:
+        environment:
+          AWS_ACCESS_KEY_ID: "AccessKeyId"
+          AWS_SECRET_ACCESS_KEY: "SecretAccessKey"
+          AWS_SESSION_TOKEN: "SessionToken"
+      files:
+        providers.tf: | 
+          provider "aws" {
+            region = var.region
+          }
+        main.tf: |
+          resource "aws_iam_policy" "this" {
+            name_prefix = "s3-policy-"
+            policy = jsonencode({
+              Version = "2012-10-17"
+              Statement = [
+                {
+                  "Effect" : "Allow",
+                  "Action" : [
+                    "s3:*"
+                  ],
+                  "Resource" : flatten([for s in var.resource_arns : [s, "$\{s}/*"]])
+                }
+              ]
+            })
+          }
+        inputs.tf: |
+          variable "resource_arns" {
+            type = list(string)
+          }
+          variable "region" {
+            type = string
+          }
+        outputs.tf: |
+          output "arn" {
+            value = resource.aws_iam_policy.this.arn
+          }
+      variables:
+        region: ${resources['config.default#aws'].outputs.region}
+        resource_arns: ${resources["aws-policy>s3"].outputs.arn}
+        
+
+  driver_type: humanitec/terraform
+  name: identity-aws-role-assumption-s3-aws-policy
+  type: aws-policy
+
+  # Supply matching criteria
+  criteria:
+  - app_id: identity-app
+  

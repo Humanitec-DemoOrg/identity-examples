@@ -1,0 +1,24 @@
+apiVersion: entity.humanitec.io/v1b1
+kind: Definition
+metadata:
+  id: identity-aws-role-assumption-config
+entity:
+  name: identity-aws-role-assumption-config
+  type: config
+  driver_type: humanitec/echo
+  
+  # Provide
+  driver_account: my-aws-cloud-account-for-terraform
+
+  driver_inputs:
+    values:
+
+      # Provide
+      region: eu-central-1
+
+      # Provide
+      roles_to_assume_from: "arn:aws:iam::1234567890:role/role-name"
+        
+  criteria:
+  - app_id: identity-app
+    res_id: aws

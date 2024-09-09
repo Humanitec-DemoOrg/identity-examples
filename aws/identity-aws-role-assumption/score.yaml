@@ -1,0 +1,28 @@
+apiVersion: score.dev/v1b1
+metadata:
+  name: test-identity
+
+containers:
+  test:
+    image: busybox:latest
+    command:
+    - /bin/sh
+    - "-c"
+    - |
+      while true
+      do
+        set
+        sleep 10
+      done
+    variables:
+      AWS_BUCKET_NAME: ${resources.bucket.bucket}
+      AWS_ROLE_ARN: ${resources.bucket-role.arn}
+
+resources:
+  bucket:
+    type: s3
+
+  bucket-role:
+    type: aws-role
+    params:
+      for: ${resources.bucket.bucket}

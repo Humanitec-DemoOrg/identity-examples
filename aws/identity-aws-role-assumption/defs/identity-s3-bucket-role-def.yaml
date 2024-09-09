@@ -1,0 +1,80 @@
+apiVersion: entity.humanitec.io/v1b1
+kind: Definition
+metadata:
+  id: identity-aws-role-assumption-aws-role
+entity:
+  driver_account: ${resources['config.default#aws'].account}
+  driver_inputs:
+    values:
+      append_logs_to_error: true
+      credentials_config:
+        environment:
+          AWS_ACCESS_KEY_ID: "AccessKeyId"
+          AWS_SECRET_ACCESS_KEY: "SecretAccessKey"
+          AWS_SESSION_TOKEN: "SessionToken"
+      files:
+        providers.tf: | 
+          provider "aws" {
+            region = var.region
+          }
+        main.tf: |
+          resource "aws_iam_role_policy_attachment" "policies" {
+            for_each   = toset(var.bucket_policy_arns)
+            role       = aws_iam_role.this.name
+            policy_arn = each.value
+          }
+
+          resource "aws_iam_role" "this" {
+            name_prefix = var.role_name_prefix
+            assume_role_policy = jsonencode({
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Principal": {
+                    "AWS": var.roles_to_assume_from
+                  },
+                  "Action": "sts:AssumeRole"
+                }
+              ]
+            })
+          }
+
+        inputs.tf: |
+          variable "bucket_policy_arns" {
+            type = list(string)
+          }
+          variable "role_name_prefix" {
+            type = string
+          }
+          variable "roles_to_assume_from" {
+            type = string
+          }
+          variable "region" {
+            type = string
+          }
+        outputs.tf: |
+          output "arn" {
+            value = resource.aws_iam_role.this.arn
+          }
+
+      variables:
+        # Finds all the s3 resources that this role depends on and then all of the 
+        # aws-policies that depend on those s3 buckets.
+        bucket_policy_arns: ${resources.aws-role>s3<aws-policy.outputs.arn}
+
+        role_name_prefix: "id-demo-${context.env.id}-"
+
+        # For simplicity in this example, it is hardcoded.
+        # If it should for example reference the role used by the pod via pod identity, this could be 
+        # replaced with: ${resources['aws-role<workload>aws-role.pod-identity'].outputs.arn}
+        roles_to_assume_from: ${resources['config.default#aws'].outputs.roles_to_assume_from}
+        region: ${resources['config.default#aws'].outputs.region}
+
+  driver_type: humanitec/terraform
+  name: identity-aws-role-assumption-aws-role
+  type: aws-role
+
+  # Supply matching criteria
+  criteria:
+  - app_id: identity-app

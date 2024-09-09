@@ -1,0 +1,53 @@
+apiVersion: entity.humanitec.io/v1b1
+kind: Definition
+metadata:
+  id: identity-aws-role-assumption-s3-bucket
+entity:
+  driver_account: ${resources['config.default#aws'].account}
+  driver_inputs:
+    values:
+      append_logs_to_error: true
+      credentials_config:
+        environment:
+          AWS_ACCESS_KEY_ID: "AccessKeyId"
+          AWS_SECRET_ACCESS_KEY: "SecretAccessKey"
+          AWS_SESSION_TOKEN: "SessionToken"
+      files:
+        providers.tf: | 
+          provider "aws" {
+            region = var.region
+          }
+        main.tf: |
+          resource "aws_s3_bucket" "id_demo" {
+            bucket_prefix = var.prefix
+          }
+        inputs.tf: |
+          variable "prefix" {
+            type = string
+          }
+          variable "region" {
+            type = string
+          }
+        outputs.tf: |
+          output "arn" {
+            value = resource.aws_s3_bucket.id_demo.arn
+          }
+          output "bucket" {
+            value = resource.aws_s3_bucket.id_demo.id
+          }
+          output "region" {
+            value = resource.aws_s3_bucket.id_demo.region
+          }
+      variables:
+        prefix: "id-demo-${context.org.id}-"
+        region: ${resources['config.default#aws'].outputs.region}
+  driver_type: humanitec/terraform
+  name: identity-aws-role-assumption-s3-bucket
+  type: s3
+  provision:
+    aws-policy:
+      is_dependent: true
+
+  # Supply matching criteria
+  criteria:
+  - app_id: identity-app
